@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SQGJ 课程连播
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  静音连播并回到所属列表
 // @match        https://www.sqgj.gov.cn/study*
 // @run-at       document-end
@@ -69,20 +69,30 @@
     return circle ? Number(circle.getAttribute('aria-valuenow')) || 0 : 0;
   };
 
+  const isIncomplete = (item) => getProgress(item) < 100;
+
+  const findFirstIncompleteIndex = (items = getPlaylistItems()) =>
+    items.findIndex(isIncomplete);
+
   const findCurrentIndex = () => {
     const items = getPlaylistItems();
+    const firstIncomplete = findFirstIncompleteIndex(items);
+    if (firstIncomplete !== -1) return firstIncomplete;
+
     const active = items.findIndex((item) =>
       item.querySelector(`${TITLE_SELECTOR}.${ACTIVE_CLASS}`)
     );
     if (active !== -1) return active;
-    const firstIncomplete = items.findIndex((item) => getProgress(item) < 100);
-    return firstIncomplete !== -1 ? firstIncomplete : 0;
+    return 0;
   };
 
   const findNextIndex = (start) => {
     const items = getPlaylistItems();
     for (let i = start + 1; i < items.length; i += 1) {
-      if (getProgress(items[i]) < 100) return i;
+      if (isIncomplete(items[i])) return i;
+    }
+    for (let i = 0; i < start; i += 1) {
+      if (isIncomplete(items[i])) return i;
     }
     return null;
   };
