@@ -1,0 +1,11 @@
+{
+  "name": "sqgj-course-marathon",
+  "version": "2.2.2",
+  "private": true,
+  "description": "陕西干部网络学院课程顺序播放用户脚本",
+  "scripts": {
+    "check": "node --check \"SQGJ 自动连播.user.js\"",
+    "test": "node --test tests/*.test.js"
+  }
+}
+
