@@ -1,33 +1,36 @@
-<p align="center">
-  <a href="#中文">中文</a> | <a href="#english">English</a>
-</p>
+# 陕西网络干部学院课程连播脚本
 
----
-
-<h1 id="中文">陕西网络干部学院课程连播脚本</h1>
-
-这是一个适用于陕西网络干部学院（`sqgj.gov.cn`）的 Tampermonkey / Violentmonkey 用户脚本项目。项目包含两个脚本，配合实现课程列表自动进入未完成课程、课程页静音连播、播放完成后返回列表并继续处理下一门课程。
+这是一个适用于陕西网络干部学院（`sqgj.gov.cn`）的 Tampermonkey / Violentmonkey 用户脚本项目。项目使用一个脚本统一管理学习课堂分类页、课程列表页和课程播放页：你手动进入任意一门大课程后，脚本会从这门课程开始，按页面顺序完成其后的已选课程和全部未完成子视频。
 
 > 本项目仅用于个人学习辅助与技术交流。使用前请确认符合所在单位、平台规则及相关法律法规；因使用脚本产生的任何后果由使用者自行承担。
 
 ## 功能
 
-- 自动识别课程列表中进度未满 100% 的课程。
-- 自动点击"继续学习"或"开始学习"。
+- 以你手动进入的大课程作为播放起点，起点以上的课程不再处理。
+- 自动识别起点以下进度未满 100% 的课程。
 - 课程页自动静音播放。
-- 单个课程内自动切换下一节未完成内容。
-- 当前课程完成后自动返回原课程列表。
+- 单个大课程内从第一节未完成子视频开始，严格按目录顺序补完。
+- 只有子视频真实播放结束并确认进度后才切换下一节。
+- 以视频时间持续增长作为“正在播放”的最高优先级信号，不因按钮图标、短暂停顿或缓冲状态刷新页面。
+- Chrome 长时间未调度后台标签页时不会累计为视频停滞；只有间隔正常的连续停滞采样达到 30 秒才允许刷新恢复。
+- 视频停顿时先点击播放器工具栏自己的播放按钮；若画面已在播放但中央仍显示三角形，则也会点击一次工具栏控件来同步组件状态，使按钮变为暂停图标，不会刷新或中断正在前进的视频。随后重新绑定播放器，连续 30 秒仍无进展才进入刷新恢复。
+- 大课程完成后先等待原“在学课程”列表标签页确认接管，再关闭播放标签页并打开下一门课程；若列表页不存在，当前播放页会保留并直接返回列表继续，绝不会关闭最后一个学院页面。
+- 若已完成课程从“在学课程”中被移除，会从它原来的列表位置继续，不会误停或跳过紧随其后的课程。
 - 支持列表分页，会继续查找下一页未完成课程。
-- 支持同一站点不同 `installId` 的课程列表独立记录状态。
+- 按“年度网络自学课程 → 专题培训”的页面顺序跨分类继续。
+- 播放过程中手动选择另一门大课程，会立即把它设为新的起点。
+- 优先保留“在学课程”列表标签页作为队列控制页；播放标签页只有在收到本次课程的列表接管确认后才会自动关闭。
+- 列表标签页与播放标签页共享同一运行批次和课程状态，播放心跳期间列表不会重复打开课程。
+- 课程打开动作使用跨标签互斥锁和 45 秒租约；同一课程的播放心跳采用排他所有权，偶发生成的第二个播放页会立即暂停并退出，不会同时播放。
+- 状态不一致时只刷新或重进当前课程；连续恢复 3 轮失败后暂停，不会跳课。
 
 ## 文件说明
 
 | 文件 | 作用 | 匹配页面 |
 | --- | --- | --- |
-| `SQGJ 列表轮播 (1).user.js` | 在课程列表页查找未完成课程并进入学习 | `https://www.sqgj.gov.cn/learningClassroom/ongoingTopicDetail*` |
-| `SQGJ 课程连播 (1).user.js` | 在课程播放页自动播放、切换小节并返回列表 | `https://www.sqgj.gov.cn/study*` |
+| `SQGJ 自动连播.user.js` | 统一管理分类、课程列表、分页、子视频播放和异常恢复 | `https://www.sqgj.gov.cn/learningClassroom/ongoingTopic*`、`https://www.sqgj.gov.cn/study*` |
 
-两个脚本需要同时安装，单独安装其中一个无法完成完整流程。
+旧版 `SQGJ 列表轮播` 和 `SQGJ 课程连播` 必须停用或卸载，否则会与单脚本状态机重复点击和跳转。
 
 ## 安装
 
@@ -37,24 +40,26 @@
 2. 打开本仓库中的脚本文件。
 3. 点击 GitHub 页面右上方的 `Raw`。
 4. 用户脚本管理器会自动弹出安装页面，点击安装。
-5. 对下面两个文件都执行一次安装：
-   - `SQGJ 列表轮播 (1).user.js`
-   - `SQGJ 课程连播 (1).user.js`
+5. 只安装 `SQGJ 自动连播.user.js`。
+6. 如果安装过旧版两个脚本，请在用户脚本管理器中将它们停用或卸载。
 
-安装完成后，脚本管理器中应能看到 `SQGJ 列表轮播` 和 `SQGJ 课程连播` 两个脚本。
+安装完成后，脚本管理器中应只启用 `SQGJ 自动连播`。
 
 ## 使用方法
 
 1. 登录陕西网络干部学院。
-2. 进入专题或课程列表页，页面地址通常类似：
+2. 进入“年度网络自学课程”或“专题培训”中的课程列表。
+3. 手动点击你希望作为起点的大课程的“继续学习”或“开始学习”。
+4. 脚本会补完该大课程的全部未完成子视频，与“在学课程”列表完成交接，然后继续处理下一门；若原列表页已不存在，播放页会在同一标签中返回列表继续。
+5. 如果选择年度课程，当前分类完成后会继续后续年度分类和专题培训；如果选择专题培训课程，则不会返回处理位于它上面的年度课程。
+
+课程列表页地址通常类似：
 
    ```text
    https://www.sqgj.gov.cn/learningClassroom/ongoingTopicDetail...
    ```
 
-3. 保持当前标签页打开，脚本会自动从第一个未完成课程开始处理。
-4. 进入课程播放页后，脚本会静音播放当前课程内容，并在完成后自动返回列表。
-5. 如果列表当前页没有未完成课程，脚本会尝试翻到下一页继续查找。
+如果你手动选择页面上的第一门课程，脚本就会从第一门开始依次向下处理。建议保留“在学课程”列表标签页；即使列表页意外不存在，脚本也会保留播放标签并由它返回列表继续，不会把所有学院页面关闭。
 
 ## 控制命令
 
@@ -64,162 +69,58 @@
 startCourseMarathon()
 ```
 
-开启或恢复自动轮播。
+开启或恢复自动连播。如果已经有手动起点，会从当前课程继续；否则会提示你先手动选择一门大课程。
 
 ```js
 stopCourseMarathon()
 ```
 
-暂停自动轮播。
+暂停自动连播，并取消当前页面内所有等待、恢复和跳转任务。
 
 ```js
 resetCourseMarathonState()
 ```
 
-清空当前 `installId` 的脚本状态。遇到状态异常、重复进入同一课程时可以尝试执行。
+清空播放起点、当前课程、分类队列和重试状态。清空后需要手动选择新的起点。
+
+```js
+getCourseMarathonStatus()
+```
+
+显示当前分类、手动起点、正在处理的课程、状态和重试原因。
 
 ## 状态存储
 
-脚本使用浏览器 `sessionStorage` 记录当前列表、课程和播放状态。状态只在当前浏览器会话中有效，关闭浏览器或清理站点数据后会重置。
+脚本使用同域 `localStorage` 在“在学课程”列表标签页和课程播放标签页之间共享手动起点、分类顺序、分页、当前大课程、子视频完成证据及重试状态，同时镜像到 `sessionStorage` 并兼容旧版 `sqgjCourseMarathon` 状态。另外会保存短期播放心跳和与本次课程完成编号绑定的列表接管确认；播放页未收到有效接管确认时不会关闭。
 
 ## 注意事项
 
 - 请保持课程页面所在标签页打开，避免浏览器挂起后台标签页导致播放中断。
-- 部分浏览器会限制自动播放，脚本已尝试通过静音播放和点击播放区域处理，但仍可能需要首次手动点击一次播放按钮。
+- 部分浏览器会限制自动播放；你手动进入起点课程并点击一次播放按钮后，脚本会以静音方式继续，不会修改播放速度。
 - 如果平台页面结构更新，脚本可能失效，需要更新选择器或逻辑。
 - 脚本不绕过登录、验证码、权限校验或平台接口限制。
+- 脚本不快进、不伪造进度，也不会直接调用平台的课程完成接口。
 - 建议先在少量课程上测试，确认行为符合预期后再长时间使用。
 
 ## 常见问题
 
 ### 安装后没有自动运行怎么办？
 
-确认是否同时安装了两个脚本，并检查当前页面地址是否匹配脚本支持的地址。也可以刷新页面后再试。
+确认只启用了 `SQGJ 自动连播`，旧版两个脚本已停用，并检查当前页面地址是否匹配脚本支持的地址。然后在课程列表中手动选择一次起点课程。
 
-### 播放完成后没有返回列表怎么办？
+### 播放完成后没有关闭课程页或继续下一门怎么办？
 
-可能是页面结构变化、视频结束事件没有触发，或浏览器阻止了页面跳转。可以刷新页面，或回到列表页执行：
+脚本会在全部子章节确认完成后等待原“在学课程”列表接管，确认成功才关闭课程播放页，并由列表确认大课程已达到 100% 或已从列表移除。若列表页不存在，当前播放页会自动返回列表继续；若浏览器阻止关闭但列表已确认接管，列表仍会继续运行，播放页会提示你手动关闭。如果连续恢复 3 轮仍未成功，会停在当前课程而不是跳到下一门。可以查看状态，再决定是否重置：
 
 ```js
 resetCourseMarathonState()
-startCourseMarathon()
 ```
 
 ### 如何确认脚本正在工作？
 
-打开开发者工具 Console，可以看到以 `[SQGJ 列表]` 或 `[SQGJ 课程]` 开头的日志。
+打开开发者工具 Console，可以看到以 `[SQGJ 自动连播]` 开头的日志，也可以执行 `getCourseMarathonStatus()` 查看当前状态。
 
 ## 许可证
 
 本项目基于 [MIT License](LICENSE) 开源。
 
----
-
-<h1 id="english">Shaanxi Online Cadre Academy — Course Marathon Scripts</h1>
-
-This is a Tampermonkey / Violentmonkey userscript project for the Shaanxi Online Cadre Academy (`sqgj.gov.cn`). It includes two scripts that work together to automatically enter unfinished courses from the course list, play through courses silently and continuously, return to the list after completion, and move on to the next course.
-
-> This project is for personal learning assistance and technical exchange only. Please ensure compliance with your institution's rules, platform policies, and applicable laws. The user assumes all responsibility for any consequences arising from the use of these scripts.
-
-## Features
-
-- Automatically identifies courses with less than 100% progress in the course list.
-- Automatically clicks "Continue Learning" or "Start Learning".
-- Auto-plays course content in muted mode.
-- Automatically switches to the next unfinished section within a course.
-- Returns to the original course list after completing a course.
-- Supports pagination — continues searching for unfinished courses on the next page.
-- Independent state tracking for course lists with different `installId` values.
-
-## File Overview
-
-| File | Purpose | URL Match |
-| --- | --- | --- |
-| `SQGJ 列表轮播 (1).user.js` | Finds unfinished courses in the list and enters them | `https://www.sqgj.gov.cn/learningClassroom/ongoingTopicDetail*` |
-| `SQGJ 课程连播 (1).user.js` | Auto-plays, switches sections, and returns to the list on the course player page | `https://www.sqgj.gov.cn/study*` |
-
-Both scripts must be installed together; installing only one will not complete the full workflow.
-
-## Installation
-
-1. Install a browser userscript manager:
-   - [Tampermonkey](https://www.tampermonkey.net/) (recommended for Chrome / Edge)
-   - Or [Violentmonkey](https://violentmonkey.github.io/)
-2. Open the script files in this repository.
-3. Click the `Raw` button at the top right of the GitHub page.
-4. Your userscript manager will automatically prompt you to install — click **Install**.
-5. Install both scripts:
-   - `SQGJ 列表轮播 (1).user.js`
-   - `SQGJ 课程连播 (1).user.js`
-
-After installation, you should see both `SQGJ 列表轮播` and `SQGJ 课程连播` in your userscript manager.
-
-## Usage
-
-1. Log in to the Shaanxi Online Cadre Academy.
-2. Navigate to a topic or course list page (URL typically looks like):
-
-   ```text
-   https://www.sqgj.gov.cn/learningClassroom/ongoingTopicDetail...
-   ```
-
-3. Keep the tab open — the script will automatically start processing from the first unfinished course.
-4. On the course player page, the script will play content silently and automatically return to the list upon completion.
-5. If the current list page has no unfinished courses, the script will attempt to navigate to the next page.
-
-## Console Commands
-
-Open the browser Developer Tools Console on the course list page to run these commands:
-
-```js
-startCourseMarathon()
-```
-
-Start or resume the auto-loop.
-
-```js
-stopCourseMarathon()
-```
-
-Pause the auto-loop.
-
-```js
-resetCourseMarathonState()
-```
-
-Clear the script state for the current `installId`. Useful when encountering state errors or repeatedly entering the same course.
-
-## State Storage
-
-The scripts use the browser's `sessionStorage` to track current list, course, and playback state. State is only valid within the current browser session and resets when the browser is closed or site data is cleared.
-
-## Notes
-
-- Keep the course page tab open to avoid the browser suspending background tabs and interrupting playback.
-- Some browsers restrict autoplay. The scripts attempt to handle this via muted playback and simulated clicks on the play area, but you may still need to manually click the play button once the first time.
-- If the platform's page structure is updated, the scripts may break and require selector or logic updates.
-- These scripts do NOT bypass login, CAPTCHAs, permission checks, or platform API restrictions.
-- It is recommended to test on a small number of courses first before extended use.
-
-## FAQ
-
-### The script doesn't run after installation?
-
-Make sure both scripts are installed and the current page URL matches the supported patterns. Try refreshing the page.
-
-### The script doesn't return to the list after playback finishes?
-
-This could be due to page structure changes, the video end event not firing, or the browser blocking navigation. Try refreshing the page, or go back to the list page and run:
-
-```js
-resetCourseMarathonState()
-startCourseMarathon()
-```
-
-### How do I know the script is working?
-
-Open the Developer Tools Console — you should see log messages prefixed with `[SQGJ 列表]` or `[SQGJ 课程]`.
-
-## License
-
-This project is open source under the [MIT License](LICENSE).
