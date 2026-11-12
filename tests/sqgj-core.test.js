@@ -473,18 +473,21 @@ test('旧播放标签页不能接管手动重选后的新运行批次', () => {
   assert.equal(isStudyOwnershipCurrent(manuallyReselected, 'run-2', 'course-2'), true);
 });
 
-test('视频已在前进但中央仍是三角形时允许同步播放器按钮状态', () => {
+test('只有实际暂停且没有时间前进时才允许点击过时的播放图标', () => {
   const visiblePlay = {
     controlVisible: true,
     controlState: 'paused',
     ended: false,
     readyState: 4,
+    paused: true,
   };
   assert.equal(shouldSyncPlayControl(visiblePlay), true);
   assert.equal(shouldSyncPlayControl({ ...visiblePlay, controlVisible: false }), false);
   assert.equal(shouldSyncPlayControl({ ...visiblePlay, controlState: 'playing' }), false);
   assert.equal(shouldSyncPlayControl({ ...visiblePlay, ended: true }), false);
   assert.equal(shouldSyncPlayControl({ ...visiblePlay, readyState: 1 }), false);
+  assert.equal(shouldSyncPlayControl({ ...visiblePlay, paused: false }), false);
+  assert.equal(shouldSyncPlayControl({ ...visiblePlay, progressing: true }), false);
 });
 
 test('固定定位的播放按钮不能只因 offsetParent 为空就判定不可见', () => {
@@ -526,4 +529,3 @@ test('后台计时器长时间未调度不会被累计成连续视频停滞', ()
   clock = observeStallClock(clock, { progressing: true, now: 86_000 });
   assert.deepEqual(clock, { accumulatedMs: 0, lastSampleAt: 86_000 });
 });
-

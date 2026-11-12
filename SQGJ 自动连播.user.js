@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SQGJ 自动连播
 // @namespace    http://tampermonkey.net/
-// @version      2.2.2
+// @version      2.2.3
 // @description  从手动选择的大课程开始，按页面顺序完成其后的所有已选课程和子视频
 // @match        https://www.sqgj.gov.cn/learningClassroom/ongoingTopic*
 // @match        https://www.sqgj.gov.cn/study*
@@ -154,8 +154,10 @@
         state.currentCourse?.key === courseKey
     );
 
-  const shouldSyncPlayControl = ({ controlVisible, controlState, ended, readyState }) =>
-    Boolean(controlVisible && controlState === 'paused' && !ended && safeNumber(readyState, 0) >= 2);
+  const shouldSyncPlayControl = ({ controlVisible, controlState, ended, readyState, paused,
+    progressing = false }) =>
+    Boolean(controlVisible && controlState === 'paused' && !ended && paused !== false &&
+      !progressing && safeNumber(readyState, 0) >= 2);
 
   const isVisibleControlMetrics = ({ width, height, display, visibility, opacity }) => {
     const normalizedOpacity = opacity == null || opacity === '' ? 1 : safeNumber(opacity, 1);
@@ -1367,6 +1369,7 @@
       let confirming = false;
       let recovering = false;
       let finishingCourse = false;
+      let studyHandedOff = false;
       let playbackHealth = createPlaybackHealth();
       let missingPlayerSince = 0;
       let stallClock = createStallClock();
@@ -1440,7 +1443,7 @@
 
       const publishStudyHeartbeat = () => {
         const state = readState();
-        if (duplicateStudyPage || !matchesStudyState(state)) return false;
+        if (studyHandedOff || duplicateStudyPage || !matchesStudyState(state)) return false;
         const existing = readStudyHeartbeat();
         const action = planStudyHeartbeat({
           heartbeat: existing,
@@ -1670,6 +1673,8 @@
             controlState: control.visualState,
             ended: player.ended,
             readyState: player.readyState,
+            paused: player.paused,
+            progressing: playback.progressing,
           })
         ) {
           lastPlayControlAt = now;
@@ -1742,11 +1747,10 @@
         try {
           const ack = await waitUntil(() => {
             const currentState = readState();
-            if (!isStudyOwnershipCurrent(currentState, state.runId, state.currentCourse.key)) {
-              return null;
-            }
+            if (currentState.runId !== state.runId || !currentState.enabled) return null;
             const candidate = readListReturnAck();
-            return isFreshListReturnAck(candidate, currentState) ? candidate : null;
+            // 列表可能已接管并开始下一门；确认仍应匹配本次完成交接。
+            return isFreshListReturnAck(candidate, state) ? candidate : null;
           }, controller, LIST_RETURN_ACK_TIMEOUT_MS);
           if (!isCurrentRun(state.runId)) return;
           if (planCourseReturn({ listAckFresh: true }) !== 'close-study-tab') return;
@@ -1755,6 +1759,7 @@
             handoffId: ack.handoffId,
             listUrl: ack.href,
           });
+          studyHandedOff = true;
           clearStudyHeartbeat();
           try {
             if (win.opener && !win.opener.closed) win.opener.focus();
@@ -1769,6 +1774,7 @@
         } catch (_error) {
           if (!isCurrentRun(state.runId)) return;
           if (planCourseReturn({ listAckFresh: false }) !== 'navigate-current-tab') return;
+          studyHandedOff = true;
           clearStudyHeartbeat();
           warn('未收到在学课程列表接管确认；保留当前标签并直接返回列表继续下一门课程');
           if (typeof win.location.replace === 'function') {
@@ -2106,6 +2112,11 @@
         }
       };
 
+      // ended 不冒泡。先在捕获阶段保存结束证据，避免网站自己的
+      // 播放器回调先重置 currentTime / ended，导致本脚本丢失结束信号。
+      controller.listen(doc, 'ended', (event) => {
+        if (event.target === boundPlayer) confirmEnded(event.target, 'ended-capture');
+      }, true);
       initializeStudy();
       controller.listen(doc, 'visibilitychange', () => {
         if (!doc.hidden) tryPlay(doc.querySelector(SELECTORS.video));
@@ -2240,4 +2251,3 @@
     run,
   };
 });
-
